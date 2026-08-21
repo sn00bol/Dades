@@ -19,7 +19,6 @@ All types of contributions are encouraged and valued. See the [Table of Contents
     - [Reporting Bugs](#reporting-bugs)
     - [Suggesting Enhancements](#suggesting-enhancements)
     - [Pull Request Process](#pull-request-process)
-- [Styleguides](#styleguides)
 
 ---
 
