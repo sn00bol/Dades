@@ -9,8 +9,8 @@
     <a href="docs/INSTRUCTION.md">INSTRUCTIONS</a>
   </p>
   <p>
-    <a href="https://github.com/sn00bol/Dades/releases"><img src="https://img.shields.io/github/v/release/sn00bol/Dades" alt="GitHub Release" /></a>
-    <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License" /></a>
+    <img src="https://img.shields.io/github/v/release/sn00bol/Dades?include_prereleases&cacheSeconds=0" alt="GitHub Release"/>
+    <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-purple.svg" alt="License" /></a>
   </p>
   <p>
     <a href="https://github.com/sn00bol/Dades/releases"><img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" width="180" alt="Get it on GitHub" /></a>
