@@ -9,7 +9,7 @@
     <a href="docs/INSTRUCTION.md">INSTRUCTIONS</a>
   </p>
   <p>
-    <img src="https://img.shields.io/github/v/release/sn00bol/Dades?include_prereleases&cacheSeconds=0" alt="GitHub Release"/>
+    <a href="https://github.com/sn00bol/Dades/releases"><img src="https://img.shields.io/github/v/release/sn00bol/Dades?sort=date&include_prereleases" alt="GitHub Release" /></a>
     <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-purple.svg" alt="License" /></a>
   </p>
   <p>
