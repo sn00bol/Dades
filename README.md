@@ -22,29 +22,29 @@
 > 
 > <b>ONLY DOWNLOAD FROM THE LINKS ABOVE. ALL OTHER SOURCES ARE FAKE OR MAY CONTAIN VIRUSES</b>
 >
-> <b>DADES WILL AND NEVER HAVE ANY SUBSCRIPTION, PAYMENT, OR DONATION METHOD, I WILL NOT RESPONSIBILITY IF YOU DONATE UNKNOWN SOURCE</b>
+> <b>DADES WILL AND NEVER HAVE ANY SUBSCRIPTION, PAYMENT, OR DONATION METHOD, I WILL NOT RESPONSIBILITY IF YOU DONATE TO UNKNOWN SOURCE</b>
 
 
 ## FEATURES
-Not added anything what you expecting bruh :sob:
+> CAUTIONS: some feature or upcoming or still in WIP, this is only future feature
+- Encrypt notes and high security
+- Highly customizable with theme, color,...
+- Will add more!
 
 ## SCREENSHOTS
 
-No, can you stop asking on a planning source code?
+ <p align="center">          
+ <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/01.png?raw=true" width="200" />
+ <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/02.png?raw=true" width="200" />
+ <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/03.png?raw=true" width="200" />
+ <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/04.png?raw=true" width="200" />
+</p>
 
-## SUPPORTED DEVICES
-### Android
-* **Android:** Android 9.0 (API 28) or higher
-* **Form Factor:** Standard candy-bar phones
-* **Architecture:** No sorry still developing
-* **Unsupported:** Tablets, Foldables, Android TV, Wear OS, and ChromeOS are currently **not supported** or optimized
+## TRANSLATION
 
-### Windows (not supported)
-* **OS**: Window 10 or higher
-* **RAM**: 2GB (4GB RAM recommend)
-* **CPU**: AMD Ryzen Threadripper PRO 7000WX
-* **GPU**: Nvidia RTX PRO 6000 Blackwell Workstation Edition
-* jk just have a computer and ram
+Currently project only support English and still no method to add another language (will add soon)
+
+Specially thanks to translator contributing project!
 
 ## NEED HELP OR SUPPORT
 * **Email:** [trancongbinhan2016@gmail.com](mailto:trancongbinhan2016@gmail.com)
