@@ -25,29 +25,37 @@
 >
 > <b>DADES WILL AND NEVER HAVE ANY SUBSCRIPTION, PAYMENT, OR DONATION METHOD, I WILL NOT RESPONSIBILITY IF YOU DONATE TO UNKNOWN SOURCE</b>
 
+## DESCRIPTION
 
-## FEATURES
-> CAUTIONS: some feature or upcoming or still in WIP, this is only future feature
-- Encrypt notes and high security
-- Highly customizable with theme, color,...
+Designed with a seamless, modern UI built entirely in Jetpack Compose with Material You language design, Dades offers fluid animations and a highly responsive native experience, featuring system-matched Dynamic Color, and extensive custom accent options for deep personalization. Beyond its aesthetics, the app secures your notes with bank-grade encryption by combining SQLCipher for database-level protection with Android Keystore hardware-backed security
+
+### FEATURES
+- Encrypt notes and high bank-grade encryption security using SQLCipher and Android Keystore
+- Highly customizable notes with theme, color,...
 - Will add more!
 
 ## SCREENSHOTS
 
  <p align="center">          
- <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/01.png?raw=true" width="200" />
- <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/02.png?raw=true" width="200" />
- <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/03.png?raw=true" width="200" />
- <img src="https://github.com/sn00bol/Dades/blob/main/assets/screenshots/04.png?raw=true" width="200" />
+ <img src="assets/screenshots/01.png" width="200" />
+ <img src="assets/screenshots/02.png" width="200" />
+ <img src="assets/screenshots/03.png" width="200" />
+ <img src="assets/screenshots/04.png" width="200" />
+ <img src="assets/screenshots/05.png" width="200" />
+ <img src="assets/screenshots/06.png" width="200" />
+ <img src="assets/screenshots/07.png" width="200" />
+ <img src="assets/screenshots/08.png" width="200" />
+ <img src="assets/screenshots/09.png" width="200" />
+ <img src="assets/screenshots/10.png" width="200" />
+ <img src="assets/screenshots/11.png" width="200" />
+ <img src="assets/screenshots/12.png" width="200" />
 </p>
 
 ## TRANSLATION
 
-Currently project only support English and still no method to add another language (will add soon)
+Currently, the app only supports **English**. Localization support and translation contributions will be added in upcoming releases. Stay tuned!
 
-Specially thanks to translator contributing project!
-
-## NEED HELP OR SUPPORT
+## NEED HELP OR SUPPORT?
 * **Email:** [trancongbinhan2016@gmail.com](mailto:trancongbinhan2016@gmail.com)
 * **Discord:** [`sn00bol`](https://discord.com/users/870567726324805673)
 * **Telegram:** [`Snoobol`](https://t.me/sn00bol)

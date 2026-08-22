@@ -15,6 +15,7 @@ captures/
 release/
 *.aab
 *.apk
+*NTS.md
 *.txt
 output-metadata.json
 
@@ -34,3 +35,4 @@ google-services.json
 
 # Android Profiling
 *.hprof
+.artifacts/
