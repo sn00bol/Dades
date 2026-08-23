@@ -18,7 +18,7 @@ jobs:
       - name: Java Development Kit 20
         uses: actions/setup-java@v5
         with:
-          distribution: 'microsoft'
+          distribution: 'temurin'
           java-version: '20'
           cache: gradle
 
