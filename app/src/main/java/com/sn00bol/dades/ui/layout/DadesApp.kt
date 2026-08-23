@@ -1,6 +1,5 @@
 package com.sn00bol.dades.ui.layout
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -14,11 +13,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sn00bol.dades.database.repository.NoteRepository
-import com.sn00bol.dades.ui.screens.notes.NoteListDetailScreen
-import com.sn00bol.dades.ui.screens.notes.NoteDetailScreen
+import com.sn00bol.dades.database.SettingsManager
+import com.sn00bol.dades.ui.screens.NoteListDetailScreen
+import com.sn00bol.dades.ui.screens.NoteDetailScreen
+import com.sn00bol.dades.ui.screens.TrashScreen
+import com.sn00bol.dades.ui.screens.SettingsScreen
+import com.sn00bol.dades.ui.screens.HelpSupportScreen
 
 @Composable
-fun DadesApp(noteRepository: NoteRepository) {
+fun DadesApp(noteRepository: NoteRepository, settingsManager: SettingsManager) {
     val navController = rememberNavController()
 
     Scaffold(
@@ -57,8 +60,18 @@ fun DadesApp(noteRepository: NoteRepository) {
             composable("notes_grid") {
                 NoteListDetailScreen(
                     noteRepository = noteRepository,
+                    settingsManager = settingsManager,
                     onNavigateToDetail = { noteId ->
                         navController.navigate("note_detail/$noteId")
+                    },
+                    onNavigateToTrash = {
+                        navController.navigate("trash")
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate("settings")
+                    },
+                    onNavigateToHelp = {
+                        navController.navigate("help_support")
                     }
                 )
             }
@@ -73,6 +86,23 @@ fun DadesApp(noteRepository: NoteRepository) {
                     onBack = {
                         navController.popBackStack()
                     }
+                )
+            }
+            composable("trash") {
+                TrashScreen(
+                    noteRepository = noteRepository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("settings") {
+                SettingsScreen(
+                    settingsManager = settingsManager,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("help_support") {
+                HelpSupportScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

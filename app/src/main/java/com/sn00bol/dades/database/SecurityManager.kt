@@ -12,33 +12,35 @@ import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/**
- * Manages security-related operations for the database, including master key management,
- * passphrase generation/retrieval, and field-level encryption.
- */
 class SecurityManager(private val context: Context) {
     private val masterKeyAlias = "dades_master_key"
     private val androidKeyStore = "AndroidKeyStore"
     private val transformation = "AES/GCM/NoPadding"
 
-    /**
-     * Retrieves or creates the master key from Android Keystore.
-     * Uses StrongBox if supported by the device.
-     */
+    @Volatile
+    private var cachedMasterKey: MasterKey? = null
+
+    @Volatile
+    private var cachedSecretKey: SecretKey? = null
+
     private fun getMasterKey(): MasterKey {
-        val builder = MasterKey.Builder(context, masterKeyAlias)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        
-        if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)) {
-            builder.setRequestStrongBoxBacked(true)
+        return cachedMasterKey ?: synchronized(this) {
+            cachedMasterKey ?: MasterKey.Builder(context, masterKeyAlias)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .let { builder ->
+                    if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)) {
+                        builder.setRequestStrongBoxBacked(true)
+                    }
+                    builder.build().also { cachedMasterKey = it }
+                }
         }
-        
-        return builder.build()
     }
 
     private fun getSecretKey(): SecretKey {
-        val keyStore = KeyStore.getInstance(androidKeyStore).apply { load(null) }
-        return keyStore.getKey(masterKeyAlias, null) as SecretKey
+        return cachedSecretKey ?: synchronized(this) {
+            cachedSecretKey ?: (KeyStore.getInstance(androidKeyStore).apply { load(null) }
+                .getKey(masterKeyAlias, null) as SecretKey).also { cachedSecretKey = it }
+        }
     }
 
     private fun getSharedPrefs() = EncryptedSharedPreferences.create(
@@ -49,9 +51,6 @@ class SecurityManager(private val context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    /**
-     * Provides a secure database passphrase.
-     */
     fun getDatabasePassphrase(): String {
         val sharedPrefs = getSharedPrefs()
         var passphrase = sharedPrefs.getString("db_passphrase", null)
@@ -62,24 +61,14 @@ class SecurityManager(private val context: Context) {
         return passphrase ?: ""
     }
 
-    /**
-     * Checks if this is the first time the app is running.
-     */
     fun isFirstRun(): Boolean {
         return getSharedPrefs().getBoolean("is_first_run", true)
     }
 
-    /**
-     * Marks the first run as completed.
-     */
     fun setFirstRunCompleted() {
         getSharedPrefs().edit().putBoolean("is_first_run", false).apply()
     }
 
-    /**
-     * Encrypts a string using the master key.
-     * Returns a Base64 encoded string containing IV + Ciphertext.
-     */
     fun encryptData(plainText: String): String {
         if (plainText.isEmpty()) return ""
         val cipher = Cipher.getInstance(transformation)
@@ -95,9 +84,6 @@ class SecurityManager(private val context: Context) {
         return Base64.encodeToString(combined, Base64.NO_WRAP)
     }
 
-    /**
-     * Decrypts a Base64 encoded string (IV + Ciphertext) using the master key.
-     */
     fun decryptData(encryptedText: String): String {
         if (encryptedText.isEmpty()) return ""
         try {

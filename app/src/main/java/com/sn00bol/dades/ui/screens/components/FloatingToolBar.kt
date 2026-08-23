@@ -1,8 +1,11 @@
-package com.sn00bol.dades.ui.screens.notes.components
+package com.sn00bol.dades.ui.screens.components
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
@@ -15,6 +18,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
@@ -22,14 +26,17 @@ import androidx.compose.ui.unit.dp
 fun FloatingNotesToolBar(
     onNewNoteClick: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
-    onSearchActiveChange: (Boolean) -> Unit,
+    onSearchActiveChange: (Boolean) -> Unit = {},
     onSearch: (String) -> Unit = {},
-    onClose: (() -> Unit)? = null,
     showAddButton: Boolean = true,
-    placeholder: String = "Search...",
-    focusRequester: FocusRequester? = null,
-    searchQuery: String = ""
+    placeholder: String = "Search something...",
+    searchQuery: String = "",
+    isSearchActive: Boolean = false,
+    focusRequester: FocusRequester? = null
 ) {
+    val internalFocusRequester = remember { FocusRequester() }
+    val effectiveFocusRequester = focusRequester ?: internalFocusRequester
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -41,17 +48,19 @@ fun FloatingNotesToolBar(
     ) {
         FloatingSearchBar(
             modifier = Modifier.weight(1f),
+            searchQuery = searchQuery,
             onSearchQueryChange = onSearchQueryChange,
             onSearchActiveChange = onSearchActiveChange,
             onSearch = onSearch,
-            onClose = onClose,
             placeholder = placeholder,
-            focusRequester = focusRequester,
-            showCloseButton = !showAddButton,
-            initialQuery = searchQuery
+            focusRequester = effectiveFocusRequester
         )
-        
-        if (showAddButton) {
+
+        AnimatedVisibility(
+            visible = showAddButton && !isSearchActive,
+            enter = expandHorizontally() + fadeIn(),
+            exit = shrinkHorizontally() + fadeOut()
+        ) {
             FloatingAddButton(onClick = onNewNoteClick)
         }
     }
@@ -60,17 +69,14 @@ fun FloatingNotesToolBar(
 @Composable
 fun FloatingSearchBar(
     modifier: Modifier = Modifier,
+    searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
     onSearch: (String) -> Unit = {},
-    onClose: (() -> Unit)? = null,
     placeholder: String = "Search...",
     focusRequester: FocusRequester? = null,
-    showCloseButton: Boolean = false,
-    initialQuery: String = ""
 ) {
-    var searchQuery by remember(initialQuery) { mutableStateOf(initialQuery) }
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val focusManager = LocalFocusManager.current
 
     Surface(
         modifier = modifier.height(60.dp),
@@ -82,33 +88,34 @@ fun FloatingSearchBar(
         TextField(
             value = searchQuery,
             onValueChange = { 
-                searchQuery = it
                 onSearchQueryChange(it)
             },
             placeholder = { Text(placeholder) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = {
-                        searchQuery = ""
+                IconButton(onClick = {
+                    if (searchQuery.isNotEmpty()) {
                         onSearchQueryChange("")
-                    }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                    } else {
+                        onSearchActiveChange(false)
+                        focusManager.clearFocus()
                     }
-                } else if (showCloseButton) {
-                    IconButton(onClick = {
-                        onClose?.invoke()
-                    }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Close")
-                    }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = if (searchQuery.isNotEmpty()) "Clear search" else "Close search"
+                    )
                 }
             },
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged { focusState ->
-                    // Only activate Blur when actually typing
-                    onSearchActiveChange(focusState.isFocused)
+                    // Only trigger active change when gaining focus.
+                    // Let the parent screens handle deactivation via explicit actions (Back, Dismiss, etc.)
+                    if (focusState.isFocused) {
+                        onSearchActiveChange(true)
+                    }
                 },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -118,10 +125,10 @@ fun FloatingSearchBar(
                 unfocusedIndicatorColor = Color.Transparent,
             ),
             singleLine = true,
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Search
             ),
-            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            keyboardActions = KeyboardActions(
                 onSearch = {
                     onSearch(searchQuery)
                     focusManager.clearFocus()

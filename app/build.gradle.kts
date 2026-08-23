@@ -14,10 +14,22 @@ android {
         applicationId = "com.sn00bol.dades"
         minSdk = 28
         targetSdk = 37
-        versionCode = 2
-        versionName = "2026.0.1"
+        versionCode = 3
+        versionName = "2026.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86"))
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+            isUniversalApk = true
+        }
     }
 
     signingConfigs {
@@ -66,6 +78,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
     
     // Database & Security
     implementation(libs.androidx.room.runtime)

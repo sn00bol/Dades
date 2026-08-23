@@ -18,13 +18,66 @@ class NoteRepository(
     private val searchHistoryDao: SearchHistoryDao,
     private val securityManager: SecurityManager
 ) {
+    private val decryptionCache = mutableMapOf<Long, Pair<Long, String>>() // noteId -> (updatedAt, decryptedBody)
+
     /**
-     * Observes all notes and decrypts their bodies.
+     * Observes all notes and decrypts their bodies efficiently using a cache.
      */
     fun getAllNotes(): Flow<List<PlainNote>> {
         return noteDao.getAllNotesWithTags().map { list ->
             list.map { noteWithTags ->
-                decryptNote(noteWithTags)
+                val cached = decryptionCache[noteWithTags.note.id]
+                val decryptedBody = if (cached != null && cached.first == noteWithTags.note.updatedAt) {
+                    cached.second
+                } else {
+                    securityManager.decryptData(noteWithTags.note.encryptedBody).also {
+                        decryptionCache[noteWithTags.note.id] = noteWithTags.note.updatedAt to it
+                    }
+                }
+                
+                PlainNote(
+                    id = noteWithTags.note.id,
+                    title = noteWithTags.note.title,
+                    body = decryptedBody,
+                    color = noteWithTags.note.color,
+                    tags = noteWithTags.tags,
+                    isLocked = noteWithTags.note.isLocked,
+                    metadata = noteWithTags.note.metadata,
+                    deletedAt = noteWithTags.note.deletedAt,
+                    createdAt = noteWithTags.note.createdAt,
+                    updatedAt = noteWithTags.note.updatedAt
+                )
+            }
+        }
+    }
+
+    /**
+     * Observes notes in trash.
+     */
+    fun getTrashNotes(): Flow<List<PlainNote>> {
+        return noteDao.getTrashNotesWithTags().map { list ->
+            list.map { noteWithTags ->
+                val cached = decryptionCache[noteWithTags.note.id]
+                val decryptedBody = if (cached != null && cached.first == noteWithTags.note.updatedAt) {
+                    cached.second
+                } else {
+                    securityManager.decryptData(noteWithTags.note.encryptedBody).also {
+                        decryptionCache[noteWithTags.note.id] = noteWithTags.note.updatedAt to it
+                    }
+                }
+
+                PlainNote(
+                    id = noteWithTags.note.id,
+                    title = noteWithTags.note.title,
+                    body = decryptedBody,
+                    color = noteWithTags.note.color,
+                    tags = noteWithTags.tags,
+                    isLocked = noteWithTags.note.isLocked,
+                    metadata = noteWithTags.note.metadata,
+                    deletedAt = noteWithTags.note.deletedAt,
+                    createdAt = noteWithTags.note.createdAt,
+                    updatedAt = noteWithTags.note.updatedAt
+                )
             }
         }
     }
@@ -35,6 +88,28 @@ class NoteRepository(
     suspend fun getNoteById(id: Long): PlainNote? {
         val noteWithTags = noteDao.getNoteById(id)
         return noteWithTags?.let { decryptNote(it) }
+    }
+
+    /**
+     * Observes note summaries (no decryption required).
+     * Extremely fast for simple lists.
+     */
+    fun getAllNoteSummaries(): Flow<List<PlainNoteSummary>> {
+        return noteDao.getAllNoteSummariesWithTags().map { list ->
+            list.map { summaryWithTags ->
+                PlainNoteSummary(
+                    id = summaryWithTags.note.id,
+                    title = summaryWithTags.note.title,
+                    color = summaryWithTags.note.color,
+                    tags = summaryWithTags.tags,
+                    isLocked = summaryWithTags.note.isLocked,
+                    metadata = summaryWithTags.note.metadata,
+                    deletedAt = summaryWithTags.note.deletedAt,
+                    createdAt = summaryWithTags.note.createdAt,
+                    updatedAt = summaryWithTags.note.updatedAt
+                )
+            }
+        }
     }
 
     /**
@@ -49,41 +124,86 @@ class NoteRepository(
             title = plainNote.title,
             encryptedBody = encryptedBody,
             color = plainNote.color,
+            isLocked = plainNote.isLocked,
             metadata = plainNote.metadata,
+            deletedAt = plainNote.deletedAt,
             createdAt = plainNote.createdAt,
             updatedAt = System.currentTimeMillis()
         )
         
-        val noteId = noteDao.insertNote(note)
-        
-        // Update tags association
-        val actualNoteId = if (plainNote.id == 0L) noteId else plainNote.id
-        noteDao.deleteTagsForNote(actualNoteId)
-        plainNote.tags.forEach { tag ->
-            noteDao.insertNoteTagCrossRef(NoteTagCrossRef(actualNoteId, tag.tagId))
-        }
-        return actualNoteId
+        val crossRefs = plainNote.tags.map { NoteTagCrossRef(note.id, it.tagId) }
+        return noteDao.insertNoteWithTags(note, crossRefs)
     }
 
     /**
-     * Deletes a note.
+     * Moves a note to trash.
+     */
+    suspend fun moveNoteToTrash(noteId: Long) {
+        noteDao.softDeleteNote(noteId, System.currentTimeMillis())
+    }
+
+    /**
+     * Restores a note from trash.
+     */
+    suspend fun restoreNote(noteId: Long) {
+        noteDao.restoreNote(noteId)
+    }
+
+    /**
+     * Deletes a note permanently.
+     */
+    suspend fun deleteNotePermanently(noteId: Long) {
+        val note = noteDao.getNoteById(noteId)?.note ?: return
+        noteDao.deleteNote(note)
+        noteDao.deleteTagsForNote(noteId)
+    }
+
+    /**
+     * Deletes all notes in trash permanently.
+     */
+    suspend fun emptyTrash() {
+        noteDao.emptyTrash()
+    }
+
+    /**
+     * Clears old notes from trash based on days threshold.
+     * @param days 0 or negative means never delete.
+     */
+    suspend fun clearOldTrash(days: Int) {
+        if (days <= 0) return
+        val threshold = System.currentTimeMillis() - (days.toLong() * 24 * 60 * 60 * 1000)
+        noteDao.deleteOldNotesInTrash(threshold)
+    }
+
+    /**
+     * Legacy delete - now moves to trash by default.
      */
     suspend fun deleteNote(plainNote: PlainNote) {
-        val note = Note(
-            id = plainNote.id,
-            title = plainNote.title,
-            encryptedBody = "", // Body not needed for deletion
-            metadata = plainNote.metadata,
-            createdAt = plainNote.createdAt,
-            updatedAt = plainNote.updatedAt
-        )
-        noteDao.deleteNote(note)
-        noteDao.deleteTagsForNote(plainNote.id)
+        moveNoteToTrash(plainNote.id)
     }
 
     fun isFirstRun() = securityManager.isFirstRun()
 
     fun markFirstRunCompleted() = securityManager.setFirstRunCompleted()
+
+    // --- Tag Operations ---
+    fun getAllTags(): Flow<List<Tag>> = tagDao.getAllTags()
+
+    suspend fun saveTag(tag: Tag): Long {
+        return tagDao.insertTag(tag)
+    }
+
+    suspend fun deleteTag(tag: Tag) {
+        tagDao.deleteTag(tag)
+    }
+
+    suspend fun addTagToNote(noteId: Long, tagId: Long) {
+        noteDao.insertNoteTagCrossRef(NoteTagCrossRef(noteId, tagId))
+    }
+
+    suspend fun removeTagFromNote(noteId: Long, tagId: Long) {
+        noteDao.deleteNoteTagCrossRef(NoteTagCrossRef(noteId, tagId))
+    }
 
     // --- Search History Operations ---
     fun getRecentSearchHistory(): Flow<List<String>> {
@@ -115,7 +235,9 @@ class NoteRepository(
             body = decryptedBody,
             color = noteWithTags.note.color,
             tags = noteWithTags.tags,
+            isLocked = noteWithTags.note.isLocked,
             metadata = noteWithTags.note.metadata,
+            deletedAt = noteWithTags.note.deletedAt,
             createdAt = noteWithTags.note.createdAt,
             updatedAt = noteWithTags.note.updatedAt
         )

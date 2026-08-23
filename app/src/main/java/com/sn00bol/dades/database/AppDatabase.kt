@@ -15,7 +15,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
     entities = [Note::class, Tag::class, NoteTagCrossRef::class, SearchHistory::class],
-    version = 3,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

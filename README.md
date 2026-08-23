@@ -25,11 +25,7 @@
 >
 > <b>DADES WILL AND NEVER HAVE ANY SUBSCRIPTION, PAYMENT, OR DONATION METHOD, I WILL NOT RESPONSIBILITY IF YOU DONATE TO UNKNOWN SOURCE</b>
 
-## DESCRIPTION
-
-Designed with a seamless, modern UI built entirely in Jetpack Compose with Material You language design, Dades offers fluid animations and a highly responsive native experience, featuring system-matched Dynamic Color, and extensive custom accent options for deep personalization. Beyond its aesthetics, the app secures your notes with bank-grade encryption by combining SQLCipher for database-level protection with Android Keystore hardware-backed security
-
-### FEATURES
+## FEATURES
 - Encrypt notes and high bank-grade encryption security using SQLCipher and Android Keystore
 - Highly customizable notes with theme, color,...
 - Will add more!
@@ -47,8 +43,6 @@ Designed with a seamless, modern UI built entirely in Jetpack Compose with Mater
  <img src="assets/screenshots/08.png" width="200" />
  <img src="assets/screenshots/09.png" width="200" />
  <img src="assets/screenshots/10.png" width="200" />
- <img src="assets/screenshots/11.png" width="200" />
- <img src="assets/screenshots/12.png" width="200" />
 </p>
 
 ## TRANSLATION

@@ -1,5 +1,17 @@
 # CHANGELOG
 
+# v2026.0.2 ALPHA - 8.23.2026
+- Add tags and `Lock` in notes
+- Add all menu select options
+- Add basic text editor with: Bold, Italic, underline, alignments and text size
+- Fix `find in notes` bug
+- Remove search popup and search result
+- Upgrading database/workflow make it load faster and reduce cache
+- Change from temp logo to official logo (one LAST time I swear)
+- Upgrading and fix gaussian blur for low-end devices
+- Searching note tags and three-dots button not working
+- Some new issue checkout at docs/ISSUES.md
+
 # v2026.0.1 ALPHA - 8.21.2026
 - Basic main menu, notes with floating bar
 - Add adaptive screen and gaussian blur (only work in android 12+) when searching stuff

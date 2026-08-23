@@ -15,61 +15,62 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * Modifier that handles standard Gaussian Blur for Android 12+ (API 31+).
- * Android < 12 will ignore it to avoid crashes/UI errors.
- */
-fun Modifier.adaptiveBlur(blurRadius: Dp): Modifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-    this.blur(
-        radius = blurRadius,
-        edgeTreatment = BlurredEdgeTreatment.Unbounded
-    )
-} else {
-    this
-}
+fun Modifier.adaptiveBlur(blurRadius: Dp, forceDisabled: Boolean = false): Modifier = 
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !forceDisabled && blurRadius > 0.dp) {
+        this.blur(
+            radius = blurRadius,
+            edgeTreatment = BlurredEdgeTreatment.Unbounded
+        )
+    } else {
+        this
+    }
 
-/**
- * Multi-platform blur management wrapper:
- * - Android 12+: Renders true Gaussian blur + slight color overlay.
- * - Android < 12: Semi-transparent dark/blur overlay (Dimming Fallback).
- */
 @Composable
 fun BlurWrapper(
     isActive: Boolean,
     onDismiss: () -> Unit,
+    blurEnabled: Boolean = true,
     maxBlurRadius: Dp = 20.dp,
     content: @Composable (blurModifier: Modifier) -> Unit
 ) {
+    val isGaussianSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useGaussian = isGaussianSupported && blurEnabled
+
     // 1. Animate Blur radius
     val blurRadius by animateDpAsState(
-        targetValue = if (isActive) maxBlurRadius else 0.dp,
+        targetValue = if (isActive && useGaussian) maxBlurRadius else 0.dp,
         animationSpec = tween(durationMillis = 300),
         label = "BlurRadiusAnimation"
     )
 
-    // 2. Animate Overlay alpha (Android < 12 uses higher alpha to simulate blur effect)
+    // 2. Animate Overlay alpha
     val overlayAlpha by animateFloatAsState(
         targetValue = if (isActive) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.3f else 0.85f
+            if (useGaussian) 0.25f else 0.75f
         } else 0f,
         animationSpec = tween(durationMillis = 300),
         label = "OverlayAlphaAnimation"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Pass Modifier containing Gaussian Blur into Content
-        content(Modifier.adaptiveBlur(blurRadius))
+        content(Modifier.adaptiveBlur(blurRadius, forceDisabled = !blurEnabled))
 
-        // Overlay providing depth and capturing click events to close Search
         if (overlayAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        MaterialTheme.colorScheme.surface.copy(alpha = overlayAlpha)
+                        if (useGaussian) {
+                            // Frosted glass tint for high-end
+                            MaterialTheme.colorScheme.surface.copy(alpha = overlayAlpha)
+                        } else {
+                            // Solid dim for low-end
+                            Color.Black.copy(alpha = overlayAlpha)
+                        }
                     )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -81,39 +82,38 @@ fun BlurWrapper(
     }
 }
 
-/**
- * Component creating a Fade effect at the top and bottom of the list.
- */
+
 @Composable
-fun EdgeFadeOverlay() {
+fun EdgeFadeOverlay(blurEnabled: Boolean = true) {
+    // Only show edge fades on devices that support Gaussian Blur (Android 12+)
+    // because these gradients are designed to complement the glass/blur look.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !blurEnabled) return
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // Top Fade
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(80.dp)
                 .align(Alignment.TopCenter)
-                .padding(top = 100.dp)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
                             MaterialTheme.colorScheme.surface.copy(alpha = 0f)
                         )
                     )
                 )
         )
-        // Bottom Fade
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(100.dp)
                 .align(Alignment.BottomCenter)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
                             MaterialTheme.colorScheme.surface.copy(alpha = 0f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                         )
                     )
                 )

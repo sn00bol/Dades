@@ -10,7 +10,9 @@ data class PlainNote(
     val body: String,
     val color: Long? = null,
     val tags: List<Tag> = emptyList(),
+    val isLocked: Boolean = false,
     val metadata: String? = null,
+    val deletedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
