@@ -6,16 +6,14 @@ plugins {
 
 android {
     namespace = "com.sn00bol.dades"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.sn00bol.dades"
         minSdk = 28
         targetSdk = 37
-        versionCode = 3
-        versionName = "2026.0.2"
+        versionCode = 4
+        versionName = "2026.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
@@ -27,7 +25,7 @@ android {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
             isUniversalApk = true
         }
     }
@@ -78,8 +76,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-    
+    //noinspection UseTomlInstead
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
+
     // Database & Security
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

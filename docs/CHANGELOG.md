@@ -1,5 +1,16 @@
 # CHANGELOG
 
+# v2026.1.0 STABLE - 8.27.2026 (Final update)
+- Add date edit, date create for notes and sort date-create time for three-dot button
+- Add redo-undo, notes list for text editor
+- Optimizing and remake text toolbar more compact
+- Upgrade tags and remove tags color
+- Upgrade hold pop up into a bar with: pin (not working), duplicate, change color, tags, delete
+- Dynamic notes size at main menu and fix notes display
+- Fix color for both light/dark mode
+
+Note: this project stopped due to upcoming new project (very big), also have no idea to continue this project, if I have free time or you could said unemployed moment I will bring this back someday
+
 # v2026.0.2 ALPHA - 8.23.2026
 - Add tags and `Lock` in notes
 - Add all menu select options

@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -40,14 +41,12 @@ fun BlurWrapper(
     val isGaussianSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val useGaussian = isGaussianSupported && blurEnabled
 
-    // 1. Animate Blur radius
     val blurRadius by animateDpAsState(
         targetValue = if (isActive && useGaussian) maxBlurRadius else 0.dp,
         animationSpec = tween(durationMillis = 300),
         label = "BlurRadiusAnimation"
     )
 
-    // 2. Animate Overlay alpha
     val overlayAlpha by animateFloatAsState(
         targetValue = if (isActive) {
             if (useGaussian) 0.25f else 0.75f
@@ -59,19 +58,15 @@ fun BlurWrapper(
     Box(modifier = Modifier.fillMaxSize()) {
         content(Modifier.adaptiveBlur(blurRadius, forceDisabled = !blurEnabled))
 
-        if (overlayAlpha > 0f) {
+        if (overlayAlpha > 0.01f) {
+            val tintColor = if (useGaussian) MaterialTheme.colorScheme.surface else Color.Black
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (useGaussian) {
-                            // Frosted glass tint for high-end
-                            MaterialTheme.colorScheme.surface.copy(alpha = overlayAlpha)
-                        } else {
-                            // Solid dim for low-end
-                            Color.Black.copy(alpha = overlayAlpha)
-                        }
-                    )
+                    .graphicsLayer {
+                        alpha = overlayAlpha
+                    }
+                    .background(tintColor)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -85,9 +80,25 @@ fun BlurWrapper(
 
 @Composable
 fun EdgeFadeOverlay(blurEnabled: Boolean = true) {
-    // Only show edge fades on devices that support Gaussian Blur (Android 12+)
-    // because these gradients are designed to complement the glass/blur look.
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !blurEnabled) return
+
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val topGradient = remember(surfaceColor) {
+        Brush.verticalGradient(
+            colors = listOf(
+                surfaceColor.copy(alpha = 0.4f),
+                surfaceColor.copy(alpha = 0f)
+            )
+        )
+    }
+    val bottomGradient = remember(surfaceColor) {
+        Brush.verticalGradient(
+            colors = listOf(
+                surfaceColor.copy(alpha = 0f),
+                surfaceColor.copy(alpha = 0.5f)
+            )
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -95,28 +106,14 @@ fun EdgeFadeOverlay(blurEnabled: Boolean = true) {
                 .fillMaxWidth()
                 .height(80.dp)
                 .align(Alignment.TopCenter)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0f)
-                        )
-                    )
-                )
+                .background(brush = topGradient)
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(100.dp)
                 .align(Alignment.BottomCenter)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                        )
-                    )
-                )
+                .background(brush = bottomGradient)
         )
     }
 }

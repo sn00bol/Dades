@@ -35,7 +35,6 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tag
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -60,15 +59,16 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import com.sn00bol.dades.TextEditor.TextEditorEngine
+import com.sn00bol.dades.TextEditor.TextEditor
+import com.sn00bol.dades.ui.screens.components.NoteCard
 import androidx.compose.ui.unit.dp
 import com.sn00bol.dades.database.model.PlainNote
 import com.sn00bol.dades.database.model.Tag
+import com.sn00bol.dades.ui.theme.LocalIsDark
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,7 +152,12 @@ fun SearchScreen(
         focusRequester.requestFocus()
     }
 
-    val activeColors = remember(notes) {
+    val isDark = LocalIsDark.current
+    val lightColors = com.sn00bol.dades.ui.theme.LightNoteColors
+    val darkColors = com.sn00bol.dades.ui.theme.DarkNoteColors
+    val currentColors = if (isDark) darkColors else lightColors
+
+    val activeColorIndices = remember(notes) {
         notes.mapNotNull { it.color }.distinct()
     }
 
@@ -334,25 +339,28 @@ fun SearchScreen(
                     }
 
                     // Colors Section
-                    if (activeColors.isNotEmpty()) {
+                    if (activeColorIndices.isNotEmpty()) {
                         item {
                             SuggestionSection(title = "Colors") {
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    items(activeColors) { colorVal ->
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .background(Color(colorVal), shape = RoundedCornerShape(12.dp))
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = Color.Black.copy(alpha = 0.1f),
-                                                    shape = RoundedCornerShape(12.dp)
-                                                )
-                                                .clickable { onColorSelect(colorVal) }
-                                        )
+                                    items(activeColorIndices) { colorIndex ->
+                                        val colorVal = currentColors.getOrNull(colorIndex.toInt())
+                                        if (colorVal != null) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .background(Color(colorVal), shape = RoundedCornerShape(12.dp))
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = Color.Black.copy(alpha = 0.1f),
+                                                        shape = RoundedCornerShape(12.dp)
+                                                    )
+                                                    .clickable { onColorSelect(colorIndex) }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -415,7 +423,7 @@ fun SearchScreen(
                         }
                     }
 
-                    if (history.isEmpty() && allTags.isEmpty() && activeColors.isEmpty()) {
+                    if (history.isEmpty() && allTags.isEmpty() && activeColorIndices.isEmpty()) {
                         item {
                             EmptySearchState()
                         }
@@ -548,7 +556,7 @@ private fun SearchResultItem(
     onClick: () -> Unit
 ) {
     val annotatedBody = remember(note.body, query) {
-        val base = TextEditorEngine.render(note.body)
+        val base = TextEditor.render(note.body, fontSizeScale = 0.7f, checkedColor = Color(0xFF4CAF50))
         if (query.isBlank()) base
         else buildAnnotatedString {
             append(base)
@@ -567,78 +575,13 @@ private fun SearchResultItem(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(20.dp)
-            )
-            .background(
-                MaterialTheme
-                    .colorScheme
-                    .surfaceContainer
-            )
-            .clickable(onClick = onClick)
-            .padding(16.dp)
-    ) {
-
-        if (note.title.isNotBlank()) {
-            Text(
-                text = note.title,
-                style = MaterialTheme
-                    .typography
-                    .titleMedium,
-                fontWeight =
-                    FontWeight.SemiBold,
-                maxLines = 1
-            )
-
-            Spacer(
-                modifier = Modifier.height(6.dp)
-            )
-        }
-
-        if (note.body.isNotBlank()) {
-            Text(
-                text = annotatedBody,
-                style = MaterialTheme
-                    .typography
-                    .bodyMedium,
-                color = MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-                maxLines = 3
-            )
-        }
-
-        if (note.tags.isNotEmpty()) {
-
-            Spacer(
-                modifier = Modifier.height(10.dp)
-            )
-
-            Row(
-                horizontalArrangement =
-                    Arrangement.spacedBy(6.dp)
-            ) {
-
-                note.tags
-                    .take(3)
-                    .forEach { tag ->
-
-                        AssistChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    text = tag.name,
-                                    maxLines = 1
-                                )
-                            }
-                        )
-                    }
-            }
-        }
-    }
+    NoteCard(
+        note = note,
+        onClick = onClick,
+        content = annotatedBody,
+        showTags = 3,
+        showLock = true
+    )
 }
 
 @Composable

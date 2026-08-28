@@ -31,7 +31,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by settingsManager.themeMode.collectAsState(initial = "System")
             
-            DadesProjectTheme(themeMode = themeMode) {
+            DadesProjectTheme(
+                themeMode = themeMode
+            ) {
                 DadesApp(noteRepository, settingsManager)
             }
         }

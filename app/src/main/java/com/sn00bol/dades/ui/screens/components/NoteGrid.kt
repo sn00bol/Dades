@@ -1,44 +1,38 @@
 package com.sn00bol.dades.ui.screens.components
 
 import android.os.Build
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sn00bol.dades.R
-import com.sn00bol.dades.TextEditor.TextEditorEngine
 import com.sn00bol.dades.database.model.PlainNote
 import com.sn00bol.dades.database.model.Tag
 import com.sn00bol.dades.ui.components.BlurWrapper
-import com.sn00bol.dades.ui.components.EdgeFadeOverlay
 import com.sn00bol.dades.ui.components.adaptiveBlur
 import kotlinx.coroutines.launch
 
@@ -49,6 +43,7 @@ fun NoteGridPane(
     allTags: List<Tag> = emptyList(),
     isSearchActive: Boolean,
     blurEnabled: Boolean = true,
+    currentTagId: Long? = null,
     onNoteClick: (Long) -> Unit,
     onDeleteNote: (PlainNote) -> Unit,
     onSaveTag: (Tag) -> Unit,
@@ -58,29 +53,50 @@ fun NoteGridPane(
     onNavigateToTrash: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToHelp: () -> Unit,
-    floatingBar: @Composable () -> Unit = {}
+    onNavigateToManageTags: (Boolean) -> Unit,
+    onNavigateToTag: (Long) -> Unit = {},
+    onNavigateToNotes: () -> Unit = {},
+    title: String? = "Notes",
+    moreVertActions: @Composable ColumnScope.(onDismiss: () -> Unit) -> Unit = { onDismiss ->
+        DropdownMenuItem(
+            text = { Text("Display settings") },
+            onClick = { onDismiss() },
+            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
+        )
+        DropdownMenuItem(
+            text = { Text("Select notes") },
+            onClick = { onDismiss() },
+            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) }
+        )
+    },
+    floatingBar: @Composable () -> Unit = {},
+    // Selection Actions
+    onDeleteNotes: (Set<Long>) -> Unit = {},
+    onDuplicateNotes: (Set<Long>) -> Unit = {},
+    onUpdateNotesColor: (Set<Long>, Long?) -> Unit = { _, _ -> },
+    onUpdateNotesTags: (Set<Long>) -> Unit = {}
 ) {
     val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val isGaussianSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    // Tag dialog states
-    var showCreateTagDialog by remember { mutableStateOf(false) }
+    // Selection state
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    val isSelectionMode = selectedIds.isNotEmpty()
+
+    // Tag selection state
     var noteIdForTagSelection by remember { mutableStateOf<Long?>(null) }
+    var showBatchTagDialog by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    // Clear selection on back press
+    androidx.activity.compose.BackHandler(enabled = isSelectionMode) {
+        selectedIds = emptySet()
+    }
 
     val noteForTagSelection = remember(noteIdForTagSelection, notes) {
         notes.find { it.id == noteIdForTagSelection }
-    }
-
-    if (showCreateTagDialog) {
-        CreateTagDialog(
-            onDismiss = { showCreateTagDialog = false },
-            onConfirm = { name, color ->
-                onSaveTag(Tag(name = name, color = color))
-                showCreateTagDialog = false
-            }
-        )
     }
 
     if (noteForTagSelection != null) {
@@ -97,13 +113,44 @@ fun NoteGridPane(
                 }
             },
             onCreateNewTag = {
-                showCreateTagDialog = true
+                onNavigateToManageTags(true)
             }
         )
     }
 
-    val isBlurEnabled = blurEnabled
-    val useGaussian = isGaussianSupported && isBlurEnabled
+    if (showBatchTagDialog) {
+        TagSelectionDialog(
+            noteId = -1,
+            noteTags = emptyList(),
+            allTags = allTags,
+            onDismiss = { showBatchTagDialog = false },
+            onTagToggle = { tag, isAdded ->
+                selectedIds.forEach { id ->
+                    if (isAdded) {
+                        onAddTagToNote(id, tag.tagId)
+                    } else {
+                        onRemoveTagFromNote(id, tag.tagId)
+                    }
+                }
+            },
+            onCreateNewTag = {
+                onNavigateToManageTags(true)
+            }
+        )
+    }
+
+    if (showColorPicker) {
+        ColorSelectionDialog(
+            onDismiss = { showColorPicker = false },
+            onColorSelected = { color ->
+                onUpdateNotesColor(selectedIds, color)
+                selectedIds = emptySet()
+                showColorPicker = false
+            }
+        )
+    }
+
+    val useGaussian = isGaussianSupported && blurEnabled
 
     val drawerBlurRadius by animateDpAsState(
         targetValue = if (drawerState.targetValue == DrawerValue.Open && useGaussian) 12.dp else 0.dp,
@@ -111,8 +158,74 @@ fun NoteGridPane(
         label = "DrawerBlur"
     )
 
+    var showTopMenu by remember { mutableStateOf(false) }
+
+    val density = LocalDensity.current
+    val topBarHeight = 64.dp
+    val topBarHeightPx = with(density) { topBarHeight.toPx() }
+    var scrollOffsetPx by remember { mutableStateOf(topBarHeightPx) }
+
+    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
+
+    val animatedTranslationY by animateDpAsState(
+        targetValue = if (isSelectionMode) 0.dp else with(density) { (scrollOffsetPx + statusBarHeightPx).toDp() },
+        animationSpec = if (isSelectionMode) tween(300) else snap(),
+        label = "OverlayTranslation"
+    )
+
+    val cornerRadius by animateDpAsState(
+        targetValue = if (isSelectionMode) 0.dp else 32.dp,
+        animationSpec = tween(durationMillis = 300),
+        label = "CornerRadius"
+    )
+
+    // Reset offset if notes are few
+    LaunchedEffect(notes.size) {
+        if (notes.size <= 6) {
+            scrollOffsetPx = topBarHeightPx
+        }
+    }
+
+    val nestedScrollConnection = remember(notes.size, topBarHeightPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (isSelectionMode) return Offset.Zero
+                // Only allow pulling up if there are many notes
+                if (available.y < 0 && notes.size <= 6) return Offset.Zero
+                
+                return if (available.y < 0) {
+                    val delta = available.y
+                    val newOffset = (scrollOffsetPx + delta).coerceIn(0f, topBarHeightPx)
+                    val consumed = newOffset - scrollOffsetPx
+                    scrollOffsetPx = newOffset
+                    Offset(0f, consumed)
+                } else {
+                    Offset.Zero
+                }
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (isSelectionMode) return Offset.Zero
+                return if (available.y > 0) {
+                    val delta = available.y
+                    val newOffset = (scrollOffsetPx + delta).coerceIn(0f, topBarHeightPx)
+                    val consumedDelta = newOffset - scrollOffsetPx
+                    scrollOffsetPx = newOffset
+                    Offset(0f, consumedDelta)
+                } else {
+                    Offset.Zero
+                }
+            }
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = !isSelectionMode,
         scrimColor = if (useGaussian) Color.Black.copy(alpha = 0.32f) else Color.Black.copy(alpha = 0.6f),
         drawerContent = {
             ModalDrawerSheet(
@@ -122,11 +235,19 @@ fun NoteGridPane(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(vertical = 24.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     NavigationDrawerItem(
                         label = { Text("Notes") },
-                        selected = true,
-                        onClick = { scope.launch { drawerState.close() } },
+                        selected = title == "Notes",
+                        onClick = { 
+                            scope.launch { 
+                                drawerState.close() 
+                                if (title != "Notes") {
+                                    onNavigateToNotes()
+                                }
+                            } 
+                        },
                         icon = {
                             Icon(
                                 painter = painterResource(id = R.drawable.notes),
@@ -135,17 +256,81 @@ fun NoteGridPane(
                             )
                         }
                     )
-                    NavigationDrawerItem(
-                        label = { Text("Create new tag") },
-                        selected = false,
-                        onClick = {
-                            scope.launch {
-                                drawerState.close()
-                                showCreateTagDialog = true
-                            }
-                        },
-                        icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) }
-                    )
+                    
+                    if (allTags.isNotEmpty()) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tags",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Editing",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.clickable { 
+                                    scope.launch {
+                                        drawerState.close()
+                                        onNavigateToManageTags(false)
+                                    }
+                                }
+                            )
+                        }
+
+                        allTags.forEach { tag ->
+                            val isSelected = currentTagId == tag.tagId
+                            NavigationDrawerItem(
+                                label = { Text(tag.name) },
+                                selected = isSelected,
+                                onClick = { 
+                                    scope.launch {
+                                        drawerState.close()
+                                        if (!isSelected) {
+                                            onNavigateToTag(tag.tagId)
+                                        }
+                                    }
+                                },
+                                icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                        }
+
+                        NavigationDrawerItem(
+                            label = { Text("Create new tag") },
+                            selected = false,
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    onNavigateToManageTags(true)
+                                }
+                            },
+                            icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    } else {
+                        NavigationDrawerItem(
+                            label = { Text("Create new tag") },
+                            selected = false,
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    onNavigateToManageTags(true)
+                                }
+                            },
+                            icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) }
+                        )
+                    }
+
                     NavigationDrawerItem(
                         label = { Text("Trash") },
                         selected = false,
@@ -177,7 +362,7 @@ fun NoteGridPane(
                                 onNavigateToHelp()
                             }
                         },
-                        icon = { Icon(Icons.AutoMirrored.Filled.Help, contentDescription = null) }
+                        icon = { Icon(Icons.Default.Help, contentDescription = null) }
                     )
                 }
             }
@@ -188,252 +373,224 @@ fun NoteGridPane(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            // Z=0: Fixed Title
+            AnimatedVisibility(
+                visible = !isSelectionMode,
+                enter = fadeIn() + slideInVertically { -it },
+                exit = fadeOut() + slideOutVertically { -it }
+            ) {
+                if (title != null) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(top = 18.dp),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
+
+            // Z=1: Scrolling Overlay
             BlurWrapper(
                 isActive = isSearchActive,
-                blurEnabled = isBlurEnabled,
+                blurEnabled = blurEnabled,
                 onDismiss = onDismissSearch
             ) { searchBlurModifier ->
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
-                        .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                        .adaptiveBlur(drawerBlurRadius, forceDisabled = !isBlurEnabled)
+                        .graphicsLayer {
+                            translationY = with(density) { animatedTranslationY.toPx() }
+                        }
+                        .adaptiveBlur(drawerBlurRadius, forceDisabled = !blurEnabled)
+                        .nestedScroll(nestedScrollConnection)
                         .then(searchBlurModifier),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                    tonalElevation = 2.dp
+                    shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 2.dp
                 ) {
-                Scaffold(
-                    containerColor = Color.Transparent,
-                    topBar = {
-                        TopAppBar(
-                            navigationIcon = {
-                                IconButton(
-                                    onClick = { scope.launch { drawerState.open() } },
-                                    modifier = Modifier
-                                        .padding(start = 8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                ) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Menu")
-                                }
-                            },
-                            title = {
-                                Text(
-                                    text = "Notes",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            },
-                            actions = {
-                                Box {
-                                    var showTopMenu by remember { mutableStateOf(false) }
-                                    IconButton(
-                                        onClick = { showTopMenu = true },
+                    Scaffold(
+                        modifier = Modifier.statusBarsPadding(),
+                        containerColor = Color.Transparent,
+                        content = { innerPadding ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding)
+                            ) {
+                                if (notes.isEmpty()) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.notes),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(120.dp),
+                                            alpha = 0.5f
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            text = "The note you just added will appear here",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = Color.Gray,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                } else {
+                                    LazyVerticalStaggeredGrid(
+                                        columns = StaggeredGridCells.Fixed(2),
                                         modifier = Modifier
-                                            .padding(end = 8.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp),
+                                        contentPadding = PaddingValues(
+                                            top = 24.dp,
+                                            bottom = 120.dp + navigationBarsPadding
+                                        ),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalItemSpacing = 12.dp
                                     ) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = "Actions")
-                                    }
-
-                                    DropdownMenu(
-                                        expanded = showTopMenu,
-                                        onDismissRequest = { showTopMenu = false }
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text("Display settings") },
-                                            onClick = { showTopMenu = false },
-                                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Select notes") },
-                                            onClick = { showTopMenu = false },
-                                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) }
-                                        )
-                                    }
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color.Transparent
-                            )
-                        )
-                    },
-                    content = { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            if (notes.isEmpty()) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.notes),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(120.dp),
-                                        alpha = 0.5f
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        text = "The note you just added will appear here",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = Color.Gray,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            } else {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(2),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp),
-                                    contentPadding = PaddingValues(
-                                        top = 16.dp,
-                                        bottom = 120.dp + navigationBarsPadding
-                                    ),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(notes, key = { it.id }) { note ->
-                                        NoteItem(
-                                            note = note,
-                                            onClick = { onNoteClick(note.id) },
-                                            onDelete = { onDeleteNote(note) },
-                                            onAddTag = { noteIdForTagSelection = note.id }
-                                        )
+                                        items(notes, key = { it.id }) { note ->
+                                            NoteItem(
+                                                note = note,
+                                                isSelected = selectedIds.contains(note.id),
+                                                onClick = {
+                                                    if (isSelectionMode) {
+                                                        selectedIds = if (selectedIds.contains(note.id)) {
+                                                            selectedIds - note.id
+                                                        } else {
+                                                            selectedIds + note.id
+                                                        }
+                                                    } else {
+                                                        onNoteClick(note.id)
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    if (!selectedIds.contains(note.id)) {
+                                                        selectedIds = selectedIds + note.id
+                                                    }
+                                                }
+                                            )
+                                        }
                                     }
                                 }
-                                EdgeFadeOverlay(blurEnabled = isBlurEnabled)
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
+
+            // Z=2: Fixed Buttons
+            AnimatedVisibility(
+                visible = !isSelectionMode,
+                enter = fadeIn() + slideInVertically { -it },
+                exit = fadeOut() + slideOutVertically { -it }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { scope.launch { drawerState.open() } },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                    ) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = "Menu",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Box {
+                        IconButton(
+                            onClick = { showTopMenu = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Actions",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showTopMenu,
+                            onDismissRequest = { showTopMenu = false }
+                        ) {
+                            moreVertActions { showTopMenu = false }
+                        }
+                    }
+                }
             }
 
             Box(
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
-                floatingBar()
+                AnimatedContent(
+                    targetState = isSelectionMode,
+                    transitionSpec = {
+                        (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { it } + fadeOut())
+                    },
+                    label = "ToolBarTransition"
+                ) { selectionMode ->
+                    if (selectionMode) {
+                        SelectionToolBar(
+                            selectedCount = selectedIds.size,
+                            onCancel = { selectedIds = emptySet() },
+                            onPin = { /* Blank for now */ },
+                            onDuplicate = { 
+                                onDuplicateNotes(selectedIds)
+                                selectedIds = emptySet()
+                            },
+                            onColor = { 
+                                showColorPicker = true
+                            },
+                            onTags = { 
+                                showBatchTagDialog = true
+                            },
+                            onDelete = {
+                                onDeleteNotes(selectedIds)
+                                selectedIds = emptySet()
+                            }
+                        )
+                    } else {
+                        floatingBar()
+                    }
+                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteItem(
     note: PlainNote,
+    isSelected: Boolean = false,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
-    onAddTag: () -> Unit
+    onLongClick: () -> Unit = {}
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-
-    Box {
-        Card(
-            modifier = Modifier
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(24.dp))
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = { showMenu = true }
-                ),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = note.color?.let { Color(it) } ?: MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxSize()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = note.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (note.isLocked) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = "Locked",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = TextEditorEngine.render(note.body),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (note.tags.isNotEmpty()) {
-                    Spacer(modifier = Modifier.weight(1f))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        note.tags.take(2).forEach { tag ->
-                            Surface(
-                                modifier = Modifier.padding(start = 4.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
-                            ) {
-                                Text(
-                                    text = tag.name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-            modifier = Modifier.width(160.dp)
-        ) {
-            DropdownMenuItem(
-                text = { Text("Add Tag") },
-                onClick = {
-                    showMenu = false
-                    onAddTag()
-                },
-                enabled = !note.isLocked,
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) }
-            )
-            DropdownMenuItem(
-                text = { Text("Delete", color = if (note.isLocked) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else MaterialTheme.colorScheme.error) },
-                onClick = {
-                    showMenu = false
-                    onDelete()
-                },
-                enabled = !note.isLocked,
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = if (note.isLocked) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else MaterialTheme.colorScheme.error) }
-            )
-        }
-    }
+    NoteCard(
+        note = note,
+        isSelected = isSelected,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        showTags = 2,
+        showLock = true
+    )
 }

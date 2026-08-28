@@ -15,12 +15,17 @@ class SettingsManager(private val context: Context) {
 
     companion object {
         val THEME_MODE = stringPreferencesKey("theme_mode") // "System", "Light", "Dark"
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val BLUR_ENABLED = booleanPreferencesKey("blur_enabled")
         val TRASH_AUTO_DELETE_DAYS = intPreferencesKey("trash_auto_delete_days")
     }
 
     val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[THEME_MODE] ?: "System"
+    }
+
+    val dynamicColor: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DYNAMIC_COLOR] ?: true
     }
 
     val blurEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -34,6 +39,12 @@ class SettingsManager(private val context: Context) {
     suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[THEME_MODE] = mode
+        }
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR] = enabled
         }
     }
 

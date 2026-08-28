@@ -25,13 +25,6 @@ fun CreateTagDialog(
     onConfirm: (String, Int) -> Unit
 ) {
     var tagName by remember { mutableStateOf("") }
-    val colors = listOf(
-        0xFFE91E63.toInt(), 0xFF9C27B0.toInt(), 0xFF673AB7.toInt(),
-        0xFF3F51B5.toInt(), 0xFF2196F3.toInt(), 0xFF00BCD4.toInt(),
-        0xFF009688.toInt(), 0xFF4CAF50.toInt(), 0xFF8BC34A.toInt(),
-        0xFFFFC107.toInt(), 0xFFFF9800.toInt(), 0xFFFF5722.toInt()
-    )
-    var selectedColor by remember { mutableStateOf(colors[0]) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -45,37 +38,13 @@ fun CreateTagDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Select color", style = MaterialTheme.typography.labelSmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Display first 6 colors for brevity in this dialog, or scrollable row
-                    colors.take(6).forEach { color ->
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(Color(color))
-                                .clickable { selectedColor = color }
-                                .padding(4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (selectedColor == color) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
-                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
                     if (tagName.isNotBlank()) {
-                        onConfirm(tagName, selectedColor)
+                        onConfirm(tagName, 0)
                     }
                 },
                 enabled = tagName.isNotBlank()
@@ -152,13 +121,6 @@ fun TagSelectionDialog(
                                     }
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(tag.color))
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(tag.name)
                             }
                         }
@@ -178,6 +140,46 @@ fun TagSelectionDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("Done")
+            }
+        }
+    )
+}
+
+@Composable
+fun RenameTagDialog(
+    tag: Tag,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var tagName by remember { mutableStateOf(tag.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Tag") },
+        text = {
+            OutlinedTextField(
+                value = tagName,
+                onValueChange = { tagName = it },
+                label = { Text("Tag name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (tagName.isNotBlank()) {
+                        onConfirm(tagName)
+                    }
+                },
+                enabled = tagName.isNotBlank()
+            ) {
+                Text("Rename")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         }
     )

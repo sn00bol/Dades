@@ -2,9 +2,7 @@ package com.sn00bol.dades.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,14 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sn00bol.dades.R
-import com.sn00bol.dades.TextEditor.TextEditorEngine
 import com.sn00bol.dades.database.model.PlainNote
 import com.sn00bol.dades.database.repository.NoteRepository
+import com.sn00bol.dades.ui.screens.components.NoteCard
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +31,9 @@ fun TrashScreen(
     val scope = rememberCoroutineScope()
     val trashNotes by noteRepository.getTrashNotes().collectAsState(initial = emptyList())
     var showEmptyDialog by remember { mutableStateOf(false) }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    val isSelectionMode = selectedIds.isNotEmpty()
 
     if (showEmptyDialog) {
         AlertDialog(
@@ -53,6 +52,34 @@ fun TrashScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showEmptyDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteSelectedDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteSelectedDialog = false },
+            title = { Text("Delete Selected?") },
+            text = { Text("Are you sure you want to permanently delete ${selectedIds.size} selected notes? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            selectedIds.forEach { id ->
+                                noteRepository.deleteNotePermanently(id)
+                            }
+                            selectedIds = emptySet()
+                            showDeleteSelectedDialog = false
+                        }
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteSelectedDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -86,13 +113,19 @@ fun TrashScreen(
                         Surface(
                             modifier = Modifier.padding(end = 8.dp),
                             shape = CircleShape,
-                            color = Color(0xFFE53935)
+                            color = if (isSelectionMode) MaterialTheme.colorScheme.primary else Color(0xFFE53935)
                         ) {
-                            IconButton(onClick = { showEmptyDialog = true }) {
+                            IconButton(onClick = { 
+                                if (isSelectionMode) {
+                                    showDeleteSelectedDialog = true
+                                } else {
+                                    showEmptyDialog = true 
+                                }
+                            }) {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.trashbin),
-                                    contentDescription = "Empty Trash",
-                                    tint = Color.White,
+                                    painter = painterResource(id = if (isSelectionMode) R.drawable.trashbin else R.drawable.trashbin),
+                                    contentDescription = if (isSelectionMode) "Delete Selected" else "Empty Trash",
+                                    tint = if (isSelectionMode) Color.White else Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -128,19 +161,37 @@ fun TrashScreen(
                 )
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalItemSpacing = 12.dp
             ) {
                 items(trashNotes, key = { it.id }) { note ->
                     TrashNoteItem(
                         note = note,
+                        isSelected = selectedIds.contains(note.id),
+                        onClick = {
+                            if (isSelectionMode) {
+                                selectedIds = if (selectedIds.contains(note.id)) {
+                                    selectedIds - note.id
+                                } else {
+                                    selectedIds + note.id
+                                }
+                            } else {
+                                // Normal click could be handled here, 
+                                // but we want long click to enter selection mode
+                            }
+                        },
+                        onLongClick = {
+                            if (!selectedIds.contains(note.id)) {
+                                selectedIds = selectedIds + note.id
+                            }
+                        },
                         onRestore = {
                             scope.launch { noteRepository.restoreNote(note.id) }
                         },
@@ -157,63 +208,45 @@ fun TrashScreen(
 @Composable
 fun TrashNoteItem(
     note: PlainNote,
+    isSelected: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onRestore: () -> Unit,
     onDeleteForever: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    Box {
-        Card(
-            modifier = Modifier
-                .aspectRatio(1f)
-                .fillMaxWidth(),
-            onClick = { showMenu = true },
-            colors = CardDefaults.cardColors(
-                containerColor = note.color?.let { Color(it).copy(alpha = 0.5f) } ?: MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxSize()
-            ) {
-                Text(
-                    text = note.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = TextEditorEngine.render(note.body),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    NoteCard(
+        note = note,
+        isSelected = isSelected,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        showTags = 0,
+        showLock = false,
+        overlayContent = {
+            if (!isSelected) {
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Restore") },
+                        onClick = {
+                            onRestore()
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete Forever", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            onDeleteForever()
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                    )
+                }
             }
         }
-
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Restore") },
-                onClick = {
-                    onRestore()
-                    showMenu = false
-                },
-                leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null) }
-            )
-            DropdownMenuItem(
-                text = { Text("Delete Forever", color = MaterialTheme.colorScheme.error) },
-                onClick = {
-                    onDeleteForever()
-                    showMenu = false
-                },
-                leadingIcon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
-            )
-        }
-    }
+    )
 }

@@ -18,6 +18,7 @@ import com.sn00bol.dades.ui.screens.components.NoteGridPane
 import com.sn00bol.dades.ui.screens.components.FloatingNotesToolBar as FloatingNotesToolBarComponent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -27,7 +28,10 @@ fun NoteListDetailScreen(
     onNavigateToDetail: (Long) -> Unit,
     onNavigateToTrash: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToHelp: () -> Unit
+    onNavigateToHelp: () -> Unit,
+    onNavigateToManageTags: (Boolean) -> Unit,
+    onNavigateToTag: (Long) -> Unit,
+    onNavigateToNotes: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -59,9 +63,8 @@ fun NoteListDetailScreen(
         if (isImeVisible) {
             wasImeVisible = true
         } else if (wasImeVisible) {
-            delay(150)
+            delay(150.milliseconds)
             wasImeVisible = false
-            // User requested to keep search bar active when keyboard hides in main menu
             if (isSearchActive) {
                 focusManager.clearFocus(force = true)
             }
@@ -75,7 +78,6 @@ fun NoteListDetailScreen(
         }
     }
 
-    // Prioritize exiting Search before going back to previous screen
     BackHandler(enabled = isSearchActive) {
         focusManager.clearFocus(force = true)
         isSearchActive = false
@@ -164,6 +166,35 @@ fun NoteListDetailScreen(
                 onNavigateToTrash = onNavigateToTrash,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToHelp = onNavigateToHelp,
+                onNavigateToManageTags = onNavigateToManageTags,
+                onNavigateToTag = onNavigateToTag,
+                onNavigateToNotes = onNavigateToNotes,
+                onDeleteNotes = { ids ->
+                    scope.launch {
+                        ids.forEach { id ->
+                            noteRepository.moveNoteToTrash(id)
+                        }
+                    }
+                },
+                onDuplicateNotes = { ids ->
+                    scope.launch {
+                        ids.forEach { id ->
+                            noteRepository.duplicateNote(id)
+                        }
+                    }
+                },
+                onUpdateNotesColor = { ids, color ->
+                    scope.launch {
+                        ids.forEach { id ->
+                            val note = noteRepository.getNoteById(id)
+                            if (note != null) {
+                                noteRepository.saveNote(note.copy(color = color))
+                            }
+                        }
+                    }
+                },
+                onUpdateNotesTags = { _ ->
+                },
                 floatingBar = {
                     FloatingNotesToolBar(
                         searchQuery = searchQuery,
@@ -193,7 +224,6 @@ fun NoteListDetailScreen(
                     )
                 }
             )
-            // Show Search Screen as a full-screen overlay
             AnimatedVisibility(
                 visible = isSearchActive,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
@@ -234,8 +264,6 @@ fun NoteListDetailScreen(
                         }
                     },
                     onAddTagToNote = { _ ->
-                        // Reuse the logic from NoteList if needed, 
-                        // but for now just a callback
                     },
                     onDismiss = {
                         if (searchQuery.isNotBlank()) {

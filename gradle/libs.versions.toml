@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.1"
+agp = "9.3.2"
 coreKtx = "1.10.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -11,7 +11,7 @@ composeBom = "2026.02.01"
 room = "2.7.0"
 sqlcipher = "4.5.4"
 securityCrypto = "1.1.0-alpha06"
-ksp = "2.2.10-2.0.2"
+ksp = "2.3.6"
 composeAdaptive = "1.0.0"
 
 [libraries]

@@ -90,6 +90,10 @@ class NoteRepository(
         return noteWithTags?.let { decryptNote(it) }
     }
 
+    fun observeNoteById(id: Long): Flow<PlainNote?> {
+        return noteDao.observeNoteById(id).map { it?.let { decryptNote(it) } }
+    }
+
     /**
      * Observes note summaries (no decryption required).
      * Extremely fast for simple lists.
@@ -180,6 +184,18 @@ class NoteRepository(
      */
     suspend fun deleteNote(plainNote: PlainNote) {
         moveNoteToTrash(plainNote.id)
+    }
+
+    suspend fun duplicateNote(noteId: Long): Long {
+        val original = getNoteById(noteId) ?: return -1
+        return saveNote(
+            original.copy(
+                id = 0,
+                title = original.title + " (Copy)",
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+        )
     }
 
     fun isFirstRun() = securityManager.isFirstRun()

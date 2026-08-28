@@ -7,9 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,8 +18,77 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+
+@Composable
+fun SelectionToolBar(
+    modifier: Modifier = Modifier,
+    selectedCount: Int,
+    onCancel: () -> Unit,
+    onPin: () -> Unit = {},
+    onDuplicate: () -> Unit = {},
+    onColor: () -> Unit = {},
+    onTags: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(16.dp)
+            .height(64.dp),
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Default.Close, contentDescription = "Cancel")
+            }
+            
+            Text(
+                text = selectedCount.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(onClick = onPin) {
+                    Icon(Icons.Default.PushPin, contentDescription = "Pin")
+                }
+                IconButton(onClick = onDuplicate) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate")
+                }
+                IconButton(onClick = onColor) {
+                    Icon(Icons.Default.Palette, contentDescription = "Change color")
+                }
+                IconButton(onClick = onTags) {
+                    Icon(Icons.AutoMirrored.Filled.Label, contentDescription = "Tags")
+                }
+                IconButton(
+                    onClick = onDelete,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun FloatingNotesToolBar(
@@ -32,7 +100,8 @@ fun FloatingNotesToolBar(
     placeholder: String = "Search something...",
     searchQuery: String = "",
     isSearchActive: Boolean = false,
-    focusRequester: FocusRequester? = null
+    focusRequester: FocusRequester? = null,
+    showSearchBar: Boolean = true
 ) {
     val internalFocusRequester = remember { FocusRequester() }
     val effectiveFocusRequester = focusRequester ?: internalFocusRequester
@@ -44,17 +113,19 @@ fun FloatingNotesToolBar(
             .imePadding()
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = if (showSearchBar) Arrangement.spacedBy(12.dp) else Arrangement.End
     ) {
-        FloatingSearchBar(
-            modifier = Modifier.weight(1f),
-            searchQuery = searchQuery,
-            onSearchQueryChange = onSearchQueryChange,
-            onSearchActiveChange = onSearchActiveChange,
-            onSearch = onSearch,
-            placeholder = placeholder,
-            focusRequester = effectiveFocusRequester
-        )
+        if (showSearchBar) {
+            FloatingSearchBar(
+                modifier = Modifier.weight(1f),
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
+                onSearchActiveChange = onSearchActiveChange,
+                onSearch = onSearch,
+                placeholder = placeholder,
+                focusRequester = effectiveFocusRequester
+            )
+        }
 
         AnimatedVisibility(
             visible = showAddButton && !isSearchActive,

@@ -1,5 +1,6 @@
 package com.sn00bol.dades.ui.layout
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -19,16 +20,17 @@ import com.sn00bol.dades.ui.screens.NoteDetailScreen
 import com.sn00bol.dades.ui.screens.TrashScreen
 import com.sn00bol.dades.ui.screens.SettingsScreen
 import com.sn00bol.dades.ui.screens.HelpSupportScreen
+import com.sn00bol.dades.ui.screens.TagManagementScreen
+import com.sn00bol.dades.ui.screens.TagNotesScreen
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun DadesApp(noteRepository: NoteRepository, settingsManager: SettingsManager) {
     val navController = rememberNavController()
 
     Scaffold(
         modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        val unused = innerPadding 
-        
+    ) {
         NavHost(
             navController = navController,
             startDestination = "notes_grid",
@@ -72,6 +74,17 @@ fun DadesApp(noteRepository: NoteRepository, settingsManager: SettingsManager) {
                     },
                     onNavigateToHelp = {
                         navController.navigate("help_support")
+                    },
+                    onNavigateToManageTags = { startCreating ->
+                        navController.navigate("manage_tags/$startCreating")
+                    },
+                    onNavigateToTag = { tagId ->
+                        navController.navigate("tag_notes/$tagId")
+                    },
+                    onNavigateToNotes = {
+                        navController.navigate("notes_grid") {
+                            popUpTo("notes_grid") { inclusive = true }
+                        }
                     }
                 )
             }
@@ -103,6 +116,45 @@ fun DadesApp(noteRepository: NoteRepository, settingsManager: SettingsManager) {
             composable("help_support") {
                 HelpSupportScreen(
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "manage_tags/{startCreating}",
+                arguments = listOf(navArgument("startCreating") { type = NavType.BoolType })
+            ) { backStackEntry ->
+                val startCreating = backStackEntry.arguments?.getBoolean("startCreating") ?: false
+                TagManagementScreen(
+                    noteRepository = noteRepository,
+                    onBack = { navController.popBackStack() },
+                    startCreatingInitially = startCreating
+                )
+            }
+            composable(
+                route = "tag_notes/{tagId}",
+                arguments = listOf(navArgument("tagId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val tagId = backStackEntry.arguments?.getLong("tagId") ?: 0L
+                TagNotesScreen(
+                    tagId = tagId,
+                    noteRepository = noteRepository,
+                    settingsManager = settingsManager,
+                    onNavigateToDetail = { noteId ->
+                        navController.navigate("note_detail/$noteId")
+                    },
+                    onNavigateToTrash = { navController.navigate("trash") },
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToHelp = { navController.navigate("help_support") },
+                    onNavigateToManageTags = { startCreating ->
+                        navController.navigate("manage_tags/$startCreating")
+                    },
+                    onNavigateToTag = { newTagId ->
+                        navController.navigate("tag_notes/$newTagId")
+                    },
+                    onNavigateToNotes = {
+                        navController.navigate("notes_grid") {
+                            popUpTo("notes_grid") { inclusive = true }
+                        }
+                    }
                 )
             }
         }
