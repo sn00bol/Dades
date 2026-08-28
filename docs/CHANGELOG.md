@@ -20,7 +20,7 @@ Note: this project stopped due to upcoming new project (very big), also have no 
 - Upgrading database/workflow make it load faster and reduce cache
 - Change from temp logo to official logo (one LAST time I swear)
 - Upgrading and fix gaussian blur for low-end devices
-- Searching note tags and three-dots button not working
+- Delete note tags and three-dots button not working
 - Some new issue checkout at docs/ISSUES.md
 
 # v2026.0.1 ALPHA - 8.21.2026
